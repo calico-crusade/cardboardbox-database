@@ -1,5 +1,6 @@
 ﻿namespace CardboardBox.Database;
 
+using Generation;
 using Sqlite;
 
 using Con = SqliteConnection;
@@ -29,7 +30,13 @@ public static class DiExtensions
 
 		bob.ConfigureGeneration(c =>
 		{
-			c.WithQueryGen<SqliteQueryGenerationService>();
+			c.WithQueryGen<SqliteQueryGenerationService>()
+			 .WithConfig(new QueryConfig
+			 {
+				 EscapeStart = "\"",
+				 EscapeEnd = "\"",
+				 ParameterCharacter = "@"
+			 });
 		});
 	}
 

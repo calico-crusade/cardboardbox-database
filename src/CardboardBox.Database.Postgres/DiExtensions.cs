@@ -30,7 +30,13 @@ public static class DiExtensions
 
 		bob.ConfigureGeneration(c =>
 		{
-			c.WithQueryGen<PostgresQueryGenerationService>();
+			c.WithQueryGen<PostgresQueryGenerationService>()
+			 .WithConfig(new Generation.QueryConfig
+			 {
+				 EscapeStart = "\"",
+				 EscapeEnd = "\"",
+				 ParameterCharacter = ":"
+			 });
 		});
 	}
 

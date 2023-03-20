@@ -14,6 +14,13 @@ public interface IConnectionInitBuilder
 	/// <param name="action">The action to perform</param>
 	/// <returns>The current builder for chaining</returns>
 	IConnectionInitBuilder OnConnect(ConnectAction action);
+
+	/// <summary>
+	/// Action that is executed on the first connection
+	/// </summary>
+	/// <param name="action">The action to perform</param>
+	/// <returns>The current builder for chaining</returns>
+	IConnectionInitBuilder OnInit(ConnectAction action);
 }
 
 /// <summary>
@@ -25,6 +32,11 @@ public interface IConnectionInitProvider : IConnectionInitBuilder
 	/// Actions that are executed every time a new SQL connection is opened.
 	/// </summary>
 	ConnectAction[] Connect { get; }
+
+	/// <summary>
+	/// Actions that are executed on the first connect only
+	/// </summary>
+	ConnectAction[] InitialRun { get; }
 }
 
 /// <summary>
@@ -33,11 +45,17 @@ public interface IConnectionInitProvider : IConnectionInitBuilder
 public class ConnectionInitBuilder : IConnectionInitProvider
 {
 	private readonly List<ConnectAction> _connect = new();
+	private readonly List<ConnectAction> _initRun = new();
 
 	/// <summary>
 	/// Actions that are executed every time a new SQL connection is opened.
 	/// </summary>
 	public ConnectAction[] Connect => _connect.ToArray();
+
+	/// <summary>
+	/// Actions that are executed on the first connect only
+	/// </summary>
+	public ConnectAction[] InitialRun => _initRun.ToArray();
 
 	/// <summary>
 	/// Action that is executed every time a new SQL connection is opened.
@@ -47,6 +65,17 @@ public class ConnectionInitBuilder : IConnectionInitProvider
 	public IConnectionInitBuilder OnConnect(ConnectAction action)
 	{
 		_connect.Add(action);
+		return this;
+	}
+
+	/// <summary>
+	/// Action that is executed on the first connection
+	/// </summary>
+	/// <param name="action">The action to perform</param>
+	/// <returns>The current builder for chaining</returns>
+	public IConnectionInitBuilder OnInit(ConnectAction action)
+	{
+		_initRun.Add(action);
 		return this;
 	}
 }

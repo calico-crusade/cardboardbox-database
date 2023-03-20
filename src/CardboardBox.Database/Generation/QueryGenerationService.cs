@@ -137,7 +137,7 @@ public class QueryGenerationService : IQueryGenerationService
 	{
 		if (columns == null || columns.Length == 0) throw new ArgumentNullException(nameof(columns));
 
-		const string QUERY = "INSERT INTO {0} ({1}) VALUE ({2})";
+		const string QUERY = "INSERT INTO {0} ({1}) VALUES ({2})";
 
 		var cols = string.Join(", ", columns.Select(t => Escape(t.Name, config)));
 		var pcols = string.Join(", ", columns.Select(t => t.Value ?? $"{config.ParameterCharacter}{t.ParamName ?? t.Name}"));

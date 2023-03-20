@@ -7,6 +7,7 @@ public class SqliteService : SqlService<SqliteConnection>
 {
 	private readonly ISqlConfig _config;
 	private readonly IConnectionInitProvider _init;
+	private static bool _initRun = true;
 
 	/// <summary>
 	/// Provides a <see cref="ISqlService"/> capable of connecting to a SQLite Database
@@ -32,6 +33,13 @@ public class SqliteService : SqlService<SqliteConnection>
 
 		if (con.State != ConnectionState.Open)
 			await con.OpenAsync();
+
+		if (_initRun)
+		{
+			_initRun = false;
+			foreach (var action in _init.InitialRun)
+				await action(con);
+		}
 
 		foreach (var action in _init.Connect)
 			await action(con);

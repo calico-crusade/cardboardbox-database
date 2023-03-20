@@ -41,6 +41,7 @@ Works as a progressive replacement to EF.</Description>
 	  <PackageReference Include="Dapper" Version="2.0.123" />
 	  <PackageReference Include="Dapper.FluentMap" Version="2.0.0" />
 	  <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="7.0.0" />
+	  <PackageReference Include="System.Text.Json" Version="7.0.2" />
 	</ItemGroup>
 	
 </Project>
