@@ -32,7 +32,7 @@ jobs:
         id: publish_nuget_database
         uses: alirezanet/publish-nuget@v3.0.4
         with:
-          PROJECT_FILE_PATH: CardboardBox.Database/CardboardBox.Database.csproj
+          PROJECT_FILE_PATH: src/CardboardBox.Database/CardboardBox.Database.csproj
           TAG_COMMIT: true
           NUGET_KEY: ${{secrets.NUGET_API_KEY}}
           
@@ -40,7 +40,7 @@ jobs:
         id: publish_nuget_database_postgres
         uses: alirezanet/publish-nuget@v3.0.4
         with:
-          PROJECT_FILE_PATH: CardboardBox.Database.Postgres/CardboardBox.Database.Postgres.csproj
+          PROJECT_FILE_PATH: src/CardboardBox.Database.Postgres/CardboardBox.Database.Postgres.csproj
           TAG_COMMIT: true
           NUGET_KEY: ${{secrets.NUGET_API_KEY}}
           
@@ -48,6 +48,6 @@ jobs:
         id: publish_nuget_database_sqlite
         uses: alirezanet/publish-nuget@v3.0.4
         with:
-          PROJECT_FILE_PATH: CardboardBox.Database.Sqlite/CardboardBox.Database.Sqlite.csproj
+          PROJECT_FILE_PATH: src/CardboardBox.Database.Sqlite/CardboardBox.Database.Sqlite.csproj
           TAG_COMMIT: true
           NUGET_KEY: ${{secrets.NUGET_API_KEY}}
