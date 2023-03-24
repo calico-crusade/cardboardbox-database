@@ -9,6 +9,7 @@ public class NpgsqlService : SqlService<NpgsqlConnection>
 {
 	private readonly IDataSourceService _datasource;
 	private readonly IConnectionInitProvider _init;
+	private static bool _initRun = true;
 
 	/// <summary>
 	/// Provides a <see cref="ISqlService"/> capable of connecting to a Postgre Database
@@ -35,8 +36,15 @@ public class NpgsqlService : SqlService<NpgsqlConnection>
 
 		var con = await bob.OpenConnectionAsync();
 
-		foreach (var item in _init.Connect)
-			await item(con);
+		if (_initRun)
+		{
+			_initRun = false;
+			foreach (var action in _init.InitialRun)
+				await action(con);
+		}
+
+		foreach (var action in _init.Connect)
+			await action(con);
 
 		return con;
 	}

@@ -1,3 +1,3 @@
 ﻿using ExampleApp;
 
-await SqliteExample.Setup().Run();
+await PostgresExample.Setup().Run();

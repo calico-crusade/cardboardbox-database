@@ -1,15 +1,18 @@
-﻿using CardboardBox.Database;
+﻿using CardboardBox;
+using CardboardBox.Database;
 using CardboardBox.Database.Generation;
 using Dapper;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 
 namespace ExampleApp;
 
-[Table("users")]
-public class TestUserSqlite
+[Table("postgres_test_users")]
+public class TestUserPostgres
 {
 	[Column(PrimaryKey = true, ExcludeInserts = true, ExcludeUpdates = true)]
-	public int Id { get; set; }
+	public long Id { get; set; }
 
 	[Column(Unique = true)]
 	public string UserName { get; set; } = string.Empty;
@@ -27,9 +30,9 @@ public class TestUserSqlite
 	[Column(ExcludeInserts = true, OverrideValue = "CURRENT_TIMESTAMP")]
 	public DateTime? UpdatedAt { get; set; }
 
-	public TestUserSqlite() { }
+	public TestUserPostgres() { }
 
-	public TestUserSqlite(string username, string discriminator, string firstname, string lastname)
+	public TestUserPostgres(string username, string discriminator, string firstname, string lastname)
 	{
 		UserName = username;
 		Discriminator = discriminator;
@@ -38,8 +41,9 @@ public class TestUserSqlite
 	}
 
 	public const string CREATE_TABLE = @"
-CREATE TABLE IF NOT EXISTS users (
-	id INTEGER PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS postgres_test_users (
+	id BIGSERIAL PRIMARY KEY,
+
 	user_name TEXT NOT NULL,
 	discriminator TEXT NOT NULL,	
 	first_name TEXT NOT NULL,
@@ -48,16 +52,16 @@ CREATE TABLE IF NOT EXISTS users (
 	created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-	UNIQUE (user_name, discriminator)
+	CONSTRAINT uiq_users_username_discriminator UNIQUE (user_name, discriminator)
 )";
 }
 
-public class SqliteExample
+public class PostgresExample
 {
 	private readonly ISqlService _sql;
 	private readonly IQueryService _query;
 
-	public SqliteExample(ISqlService sql, IQueryService query)
+	public PostgresExample(ISqlService sql, IQueryService query)
 	{
 		_sql = sql;
 		_query = query;
@@ -66,19 +70,19 @@ public class SqliteExample
 	public async Task Run()
 	{
 		//Cache your queries!
-		var insertQuery = _query.Insert<TestUserSqlite>();
-		var upsertQuery = _query.Upsert<TestUserSqlite>();
-		var allQuery = _query.Select<TestUserSqlite>();
-		var selectQuery = _query.Select<TestUserSqlite>(c => c.Prop(t => t.LastName));
+		var insertQuery = _query.Insert<TestUserPostgres>();
+		var upsertQuery = _query.Upsert<TestUserPostgres>();
+		var allQuery = _query.Select<TestUserPostgres>();
+		var selectQuery = _query.Select<TestUserPostgres>(c => c.Prop(t => t.LastName));
 
 		//Setup some data to use
-		var john = new TestUserSqlite("test", "0001", "Jxhn", "Doe");
+		var john = new TestUserPostgres("test", "0001", "Jxhn", "Doe");
 		var users = new[]
 		{
 			john,
-			new TestUserSqlite("test", "0002", "Jane", "Doe"),
-			new TestUserSqlite("test", "0003", "Jane", "Smith"),
-			new TestUserSqlite("some", "0001", "Joe", "Smith")
+			new TestUserPostgres("test", "0002", "Jane", "Doe"),
+			new TestUserPostgres("test", "0003", "Jane", "Smith"),
+			new TestUserPostgres("some", "0001", "Joe", "Smith")
 		};
 
 		//Add all users to the database
@@ -90,37 +94,53 @@ public class SqliteExample
 		await _sql.Execute(upsertQuery, john);
 
 		//Get all people with the last name of "Smith"
-		var allSmiths = await _sql.Get<TestUserSqlite>(selectQuery, new { LastName = "Smith" });
+		var allSmiths = await _sql.Get<TestUserPostgres>(selectQuery, new { LastName = "Smith" });
 
 		Console.WriteLine("Here are all of the Smiths:");
 		foreach (var user in allSmiths)
 			Console.WriteLine("User: {0} - {1} {2} ({3}#{4})", user.Id, user.FirstName, user.LastName, user.UserName, user.Discriminator);
 
 		//Get all of the records:
-		var allUsers = await _sql.Get<TestUserSqlite>(allQuery);
+		var allUsers = await _sql.Get<TestUserPostgres>(allQuery);
 
 		Console.WriteLine("Here are all users:");
 		foreach (var user in allUsers)
 			Console.WriteLine("User: {0} - {1} {2} ({3}#{4})", user.Id, user.FirstName, user.LastName, user.UserName, user.Discriminator);
 	}
 
-	public static SqliteExample Setup()
+	public static PostgresExample Setup()
 	{
-		if (File.Exists("database.db"))
-			File.Delete("database.db");
-
 		return new ServiceCollection()
+			.AddConfig(c =>
+			{
+				c.AddFile("appsettings.json", false, true)
+				 .AddEnvironmentVariables();
+			})
 			.AddSqlService(c =>
 			{
-				c.AddSQLite("Data Source=database.db;", init: f =>
+				c.AddPostgres<ConfigurationSqlConfig>(init: f =>
 				{
-					f.OnInit((con) => con.ExecuteAsync(TestUserSqlite.CREATE_TABLE));
+					f.OnInit(con => con.ExecuteAsync(TestUserPostgres.CREATE_TABLE));
 				})
 				.ConfigureGeneration(c => c.WithCamelCaseChange())
-				.ConfigureTypes(c => c.CamelCase().Entity<TestUserSqlite>());
+				.ConfigureTypes(c => c.CamelCase().Entity<TestUserPostgres>());
 			})
-			.AddSingleton<SqliteExample>()
+			.AddSingleton<PostgresExample>()
 			.BuildServiceProvider()
-			.GetRequiredService<SqliteExample>();
+			.GetRequiredService<PostgresExample>();
+	}
+
+	public class ConfigurationSqlConfig : ISqlConfig<NpgsqlConnection>
+	{
+		private readonly IConfiguration _config;
+
+		public int Timeout { get; set; } = 0;
+
+		public string ConnectionString => _config["Database:Postgres"];
+
+		public ConfigurationSqlConfig(IConfiguration config)
+		{
+			_config = config;
+		}
 	}
 }

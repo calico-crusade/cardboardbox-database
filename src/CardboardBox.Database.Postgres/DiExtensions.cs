@@ -47,7 +47,7 @@ public static class DiExtensions
 	/// <param name="builder">The configuration builder to add postgres to</param>
 	/// <param name="init">The optional initalization configuration action</param>
 	/// <returns>The configuration builder for chaining</returns>
-	public static ISqlConfigurationBuilder AddPostges<T>(this ISqlConfigurationBuilder builder, Init? init = null)
+	public static ISqlConfigurationBuilder AddPostgres<T>(this ISqlConfigurationBuilder builder, Init? init = null)
 		where T : class, Config
 	{
 		builder.AddSqlEngine<Con, Service, T>();
@@ -62,7 +62,7 @@ public static class DiExtensions
 	/// <param name="config">The configuration to use for postgres connections</param>
 	/// <param name="init">The optional initalization configuration action</param>
 	/// <returns>The configuration builder for chaining</returns>
-	public static ISqlConfigurationBuilder AddPostgre(this ISqlConfigurationBuilder builder, Config config, Init? init = null)
+	public static ISqlConfigurationBuilder AddPostgres(this ISqlConfigurationBuilder builder, Config config, Init? init = null)
 	{
 		builder.AddSqlEngine<Con, Service>(config);
 		RegisterInternalServices(builder, init);
