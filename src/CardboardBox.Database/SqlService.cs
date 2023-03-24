@@ -94,6 +94,19 @@ public interface ISqlService
 	/// <param name="splitOn">Which column name(s) to separate the return results on (Defaults to "split")</param>
 	/// <returns>A tuple containing the return results of the query</returns>
 	Task<(T1 item1, T2 item2)[]> QueryTupleAsync<T1, T2>(string query, object? parameters = null, string splitOn = "split");
+
+	/// <summary>
+	/// Provides an easy way to fetching paginated results in one query
+	/// </summary>
+	/// <typeparam name="T">The type of record to return</typeparam>
+	/// <param name="query">The paginated query</param>
+	/// <param name="parameters">The parameters to execute with</param>
+	/// <param name="page">The page of results you want</param>
+	/// <param name="size">The size of each page</param>
+	/// <param name="offsetName">The name of the offset parameter in the query</param>
+	/// <param name="sizeName">The name of the size parameter in the query</param>
+	/// <returns>The paginated query results</returns>
+	Task<PaginatedResult<T>> Paginate<T>(string query, object? parameters = null, int page = 1, int size = 100, string offsetName = "offset", string sizeName = "limit");
 }
 
 /// <summary>
@@ -226,5 +239,32 @@ public abstract class SqlService : ISqlService
 			(a, b) => (a, b),
 			parameters,
 			splitOn: splitOn)).ToArray();
+	}
+
+	/// <summary>
+	/// Provides an easy way to fetching paginated results in one query
+	/// </summary>
+	/// <typeparam name="T">The type of record to return</typeparam>
+	/// <param name="query">The paginated query</param>
+	/// <param name="parameters">The parameters to execute with</param>
+	/// <param name="page">The page of results you want</param>
+	/// <param name="size">The size of each page</param>
+	/// <param name="offsetName">The name of the offset parameter in the query</param>
+	/// <param name="sizeName">The name of the size parameter in the query</param>
+	/// <returns>The paginated query results</returns>
+	public async Task<PaginatedResult<T>> Paginate<T>(string query, object? parameters = null, int page = 1, int size = 100, string offsetName = "offset", string sizeName = "limit")
+	{
+		var p = new DynamicParameters(parameters);
+		p.Add(offsetName, (page - 1) * size);
+		p.Add(sizeName, size);
+
+		using var con = await CreateConnection();
+		using var rdr = await con.QueryMultipleAsync(query, p);
+
+		var res = (await rdr.ReadAsync<T>()).ToArray();
+		var total = await rdr.ReadSingleAsync<int>();
+
+		var pages = (int)Math.Ceiling((double)total / size);
+		return new(pages, total, res);
 	}
 }
