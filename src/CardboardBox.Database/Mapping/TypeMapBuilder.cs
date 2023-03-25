@@ -51,6 +51,28 @@ public interface ITypeMapBuilder
 	/// <typeparam name="T">The type of generic array</typeparam>
 	/// <returns>The current builder for chaining</returns>
 	ITypeMapBuilder ArrayHandler<T>();
+
+	/// <summary>
+	/// Adds a handler for serializing generic objects
+	/// </summary>
+	/// <typeparam name="T">The type of object</typeparam>
+	/// <returns>The current builder for chaining</returns>
+	ITypeMapBuilder JsonHandler<T>() where T : new();
+
+	/// <summary>
+	/// Adds a handler for serializing generic objects
+	/// </summary>
+	/// <typeparam name="T">The type of object</typeparam>
+	/// <returns>The current builder for chaining</returns>
+	ITypeMapBuilder NullableJsonHandler<T>();
+
+	/// <summary>
+	/// Adds a handler for serializing generic objects
+	/// </summary>
+	/// <typeparam name="T">The type of object</typeparam>
+	/// <param name="default">How to create a default object</param>
+	/// <returns>The current builder for chaining</returns>
+	ITypeMapBuilder DefaultJsonHandler<T>(Func<T> @default);
 }
 
 /// <summary>
@@ -95,8 +117,20 @@ public class TypeMapBuilder : ITypeMapBuilder
 	/// <returns>The current builder for chaining</returns>
 	public ITypeMapBuilder TypeHandler<T, THandler>() where THandler : SqlMapper.TypeHandler<T>, new()
 	{
+		return TypeHandler(new THandler());
+	}
+
+	/// <summary>
+	/// Tells the dapper mapper how to handle a specific type. 
+	/// This is for polyfilling missing types like <see cref="DateTime"/> and <see cref="bool"/> in older versions of SQLite
+	/// </summary>
+	/// <typeparam name="T">The type to map</typeparam>
+	/// <param name="handler">The type handler to use</param>
+	/// <returns>The current builder for chaining</returns>
+	public ITypeMapBuilder TypeHandler<T>(SqlMapper.TypeHandler<T> handler)
+	{
 		SqlMapper.RemoveTypeMap(typeof(T));
-		SqlMapper.AddTypeHandler(new THandler());
+		SqlMapper.AddTypeHandler(handler);
 		return this;
 	}
 
@@ -125,7 +159,29 @@ public class TypeMapBuilder : ITypeMapBuilder
 	/// </summary>
 	/// <typeparam name="T">The type of generic array</typeparam>
 	/// <returns>The current builder for chaining</returns>
-	public ITypeMapBuilder ArrayHandler<T>() => TypeHandler<T[], ArrayHandler<T>>();
+	public ITypeMapBuilder ArrayHandler<T>() => DefaultJsonHandler(Array.Empty<T>);
+
+	/// <summary>
+	/// Adds a handler for serializing generic objects
+	/// </summary>
+	/// <typeparam name="T">The type of object</typeparam>
+	/// <returns>The current builder for chaining</returns>
+	public ITypeMapBuilder JsonHandler<T>() where T: new() => TypeHandler(new JsonHandler<T>());
+
+	/// <summary>
+	/// Adds a handler for serializing generic objects
+	/// </summary>
+	/// <typeparam name="T">The type of object</typeparam>
+	/// <returns>The current builder for chaining</returns>
+	public ITypeMapBuilder NullableJsonHandler<T>() => TypeHandler(new NullableJsonHandler<T>());
+
+	/// <summary>
+	/// Adds a handler for serializing generic objects
+	/// </summary>
+	/// <typeparam name="T">The type of object</typeparam>
+	/// <param name="default">How to create a default object</param>
+	/// <returns>The current builder for chaining</returns>
+	public ITypeMapBuilder DefaultJsonHandler<T>(Func<T> @default) => TypeHandler(new DefaultJsonHandler<T>(@default));
 
 	/// <summary>
 	/// Intiailizes the Dapper Fluent Map
