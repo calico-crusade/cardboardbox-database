@@ -13,6 +13,43 @@ public interface IQueryService
 	ReflectedType Type<T>();
 
 	/// <summary>
+	/// Generates the <see cref="ColumnConfig"/>s for the given expression builder
+	/// </summary>
+	/// <typeparam name="T">The type of POCO we're dealing with</typeparam>
+	/// <param name="bob">The expression builder</param>
+	/// <param name="override">Whether or not to use the override values (true) or parameter names (false) in the column configs</param>
+	/// <returns>The <see cref="ColumnConfig"/>s for the given expression builder</returns>
+	ColumnConfig[] From<T>(ExpressionBuilder<T> bob, bool @override = true);
+
+	/// <summary>
+	/// Generates the <see cref="ColumnConfig"/>s for the given property list
+	/// </summary>
+	/// <param name="props">The properties we're dealing with</param>
+	/// <param name="override">Whether or not to use the override values (true) or parameter names (false) in the column configs</param>
+	/// <returns>The <see cref="ColumnConfig"/>s for the given property list</returns>
+	ColumnConfig[] From(IEnumerable<PropValue> props, bool @override = true);
+
+	/// <summary>
+	/// Generates the <see cref="ColumnConfig"/>s for the given property list
+	/// </summary>
+	/// <param name="props">The properties we're dealing with</param>
+	/// <param name="override">Whether or not to use the override values (true) or parameter names (false) in the column configs</param>
+	/// <returns>The <see cref="ColumnConfig"/>s for the given property list</returns>
+	ColumnConfig[] From(IEnumerable<ReflectedProperty> props, bool @override = true);
+
+	/// <summary>
+	/// Gets the <see cref="ColumnConfig"/> for the given property expression
+	/// </summary>
+	/// <typeparam name="T1">The type of POCO we're dealing with</typeparam>
+	/// <typeparam name="T2">The return type of the property</typeparam>
+	/// <param name="type">The <see cref="ReflectedType"/> of the POCO we're dealing with</param>
+	/// <param name="property">The lambda expression to fetch the property</param>
+	/// <param name="override">Whether or not to use the override values (true) or parameter names (false) in the column configs</param>
+	/// <returns>The <see cref="ColumnConfig"/> for the given property expression</returns>
+	/// <exception cref="ArgumentException">Thrown if the property expression resolves to an invalid column</exception>
+	ColumnConfig From<T1, T2>(ReflectedType type, Expression<Func<T1, T2>> property, bool @override = true);
+
+	/// <summary>
 	/// Generates a SQL query based on the given type and conditions
 	/// </summary>
 	/// <typeparam name="T">The type of object to query against</typeparam>
@@ -45,6 +82,17 @@ public interface IQueryService
 	/// <param name="config">The configuration for the query generation</param>
 	/// <returns>The generated SQL UPDATE query</returns>
 	string Update<T>(Action<IExpressionBuilder<T>>? where = null, QueryConfig? config = null);
+
+	/// <summary>
+	/// Generates an UPDATE SQL query for the given type that only updates the given properties
+	/// </summary>
+	/// <typeparam name="T">The type of object to update</typeparam>
+	/// <param name="set">The columns that should be updated</param>
+	/// <param name="where">The conditions to update against</param>
+	/// <param name="config">The configuration for the query generation</param>
+	/// <returns>The generated SQL UPDATE query</returns>
+	/// <exception cref="ArgumentException">Thrown if the where query cannot be found or if no set properties are specified</exception>
+	string UpdateOnly<T>(Action<IPropertyBinder<T>> set, Action<IExpressionBuilder<T>>? where = null, QueryConfig? config = null);
 
 	/// <summary>
 	/// Generates a DELETE SQL query for the given type
@@ -276,6 +324,48 @@ public class QueryService : IQueryService
 		if (!pk.Any()) throw new ArgumentException("No primary key found for type: " + map.Name);
 		var wp = _raw.Where(config, " AND ", From(pk, false));
 		return _raw.Update(map.Name, config, wp, From(cols));
+	}
+
+	/// <summary>
+	/// Generates an UPDATE SQL query for the given type that only updates the given properties
+	/// </summary>
+	/// <typeparam name="T">The type of object to update</typeparam>
+	/// <param name="set">The columns that should be updated</param>
+	/// <param name="where">The conditions to update against</param>
+	/// <param name="config">The configuration for the query generation</param>
+	/// <returns>The generated SQL UPDATE query</returns>
+	/// <exception cref="ArgumentException">Thrown if the where query cannot be found or if no set properties are specified</exception>
+	public string UpdateOnly<T>(Action<IPropertyBinder<T>> set, Action<IExpressionBuilder<T>>? where = null, QueryConfig? config = null)
+	{
+		config ??= _config.GetQueryConfig();
+		var map = _reflected.GetType<T>();
+
+		var whereBob = new ExpressionBuilder<T>(map);
+		where?.Invoke(whereBob);
+
+		string? wp = null;
+
+		if (where != null && whereBob.Properties.Count > 0)
+			wp = _raw.Where(config, " AND ", From(whereBob, false));
+		else
+		{
+			var pk = map.Properties
+				.Values
+				.Where(t => t.Column?.PrimaryKey ?? false)
+				.ToArray();
+
+			if (!pk.Any()) throw new ArgumentException("No primary key found for type: " + map.Name);
+
+			wp = _raw.Where(config, " AND ", From(pk, false));
+		}
+
+		var setBob = new ExpressionBuilder<T>(map);
+		set?.Invoke(setBob);
+
+		if (setBob.Properties.Count == 0) throw new ArgumentException("No set properties found");
+
+		var cols = From(setBob, true);
+		return _raw.Update(map.Name, config, wp, cols);
 	}
 
 	/// <summary>

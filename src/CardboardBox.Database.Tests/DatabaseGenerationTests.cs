@@ -74,7 +74,7 @@ public class DatabaseGenerationTests
 		var query = srv.Insert<PropertyTestObject>();
 
 		Assert.AreEqual("INSERT INTO [PropertyTestObject] " +
-			"([UserName], [FirstName], [LastName], [Email], [DeletedAt]) VALUE " +
+			"([UserName], [FirstName], [LastName], [Email], [DeletedAt]) VALUES " +
 			"(@UserName, @FirstName, @LastName, @EmailAddress, @DeletedAt)", query);
 	}
 
@@ -97,6 +97,27 @@ public class DatabaseGenerationTests
 			"SET [UserName] = @UserName, [FirstName] = @FirstName, " +
 			"[LastName] = @LastName, [Email] = @EmailAddress, " +
 			"[UpdatedAt] = CURRENT_TIMESTAMP, [DeletedAt] = @DeletedAt " +
+			"WHERE [Email] = @EmailAddress", updateCol);
+	}
+
+	[TestMethod]
+	public void Query_Update_Only()
+	{
+		var srv = _provider?.GetRequiredService<IQueryService>();
+		Assert.IsNotNull(srv);
+
+		var updatePk = srv.UpdateOnly<PropertyTestObject>(
+			t => t.Prop(a => a.EmailAddress).Prop(a => a.DeletedAt));
+		var updateCol = srv.UpdateOnly<PropertyTestObject>(
+			t => t.Prop(a => a.EmailAddress).Prop(a => a.DeletedAt), 
+			t => t.With(a => a.EmailAddress));
+
+		Assert.AreEqual("UPDATE [PropertyTestObject] " +
+			"SET [Email] = @EmailAddress, [DeletedAt] = @DeletedAt " +
+			"WHERE [Id] = @Id", updatePk);
+
+		Assert.AreEqual("UPDATE [PropertyTestObject] " +
+			"SET [Email] = @EmailAddress, [DeletedAt] = @DeletedAt " +
 			"WHERE [Email] = @EmailAddress", updateCol);
 	}
 
@@ -155,7 +176,7 @@ public class DatabaseGenerationTests
 			"WHERE [UserName] = @UserName; " +
 			"IF (@@ROWCOUNT = 0) " +
 			"INSERT INTO [PropertyTestObject] " +
-			"([UserName], [FirstName], [LastName], [Email], [DeletedAt]) VALUE " +
+			"([UserName], [FirstName], [LastName], [Email], [DeletedAt]) VALUES " +
 			"(@UserName, @FirstName, @LastName, @EmailAddress, @DeletedAt);", upsertUq);
 
 		Assert.AreEqual("UPDATE [PropertyTestObject] " +
@@ -165,7 +186,7 @@ public class DatabaseGenerationTests
 			"WHERE [FirstName] = @FirstName AND [Email] = @EmailAddress; " +
 			"IF (@@ROWCOUNT = 0) " +
 			"INSERT INTO [PropertyTestObject] " +
-			"([UserName], [FirstName], [LastName], [Email], [DeletedAt]) VALUE " +
+			"([UserName], [FirstName], [LastName], [Email], [DeletedAt]) VALUES " +
 			"(@UserName, @FirstName, @LastName, @EmailAddress, @DeletedAt);", upsertWhere);
 	}
 
